@@ -1,0 +1,8 @@
+{
+    "name": "nurahub/auth-assignment",
+    "description": "Registration, login, and profile system (PHP + MySQL + MongoDB + Redis)",
+    "require": {
+        "php": ">=8.0",
+        "mongodb/mongodb": "^1.17|^2.0"
+    }
+}
