@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
-
+error_log('DEBUG REQUEST_METHOD: ' . ($_SERVER['REQUEST_METHOD'] ?? 'MISSING'));
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(false, 'Method not allowed', [], 405);
 }
