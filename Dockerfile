@@ -15,7 +15,8 @@ COPY . .
 
 RUN rm -f /etc/nginx/sites-enabled/default
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+RUN sed -i "s/__PORT__/80/g" /etc/nginx/conf.d/default.conf && nginx -t
 
 EXPOSE 80
 
-CMD ["sh", "-c", "sed -i \"s/__PORT__/${PORT:-80}/g\" /etc/nginx/conf.d/default.conf && php-fpm -D && nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "sed -i \"s/listen 80;/listen ${PORT:-80};/g\" /etc/nginx/conf.d/default.conf && php-fpm -D && nginx -g 'daemon off;'"]
