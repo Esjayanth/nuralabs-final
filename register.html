@@ -1,45 +1,178 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Register &middot; NuraHub</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register &middot; NuraHub Auth</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              500: '#6366f1',
+              600: '#4f46e5',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Custom Modern Styles -->
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body>
-<div class="d-flex align-items-center justify-content-center vh-100 auth-bg">
-  <div class="card shadow-lg auth-card">
-    <div class="card-body p-4">
-      <h3 class="card-title mb-3 text-center">Create Account</h3>
+<body class="mesh-gradient-bg text-slate-100 min-h-screen flex items-center justify-center p-4 selection:bg-indigo-500 selection:text-white relative overflow-x-hidden">
 
-      <div id="registerAlert" class="alert d-none" role="alert"></div>
+  <!-- Ambient Glowing Blobs -->
+  <div class="glow-blob w-96 h-96 bg-purple-600 top-10 right-10"></div>
+  <div class="glow-blob w-96 h-96 bg-indigo-600 bottom-10 left-10" style="animation-delay: -3s;"></div>
 
-      <form id="registerForm" novalidate>
-        <div class="mb-3">
-          <label for="username" class="form-label">Username</label>
-          <input type="text" class="form-control" id="username" name="username" required minlength="3" maxlength="30">
+  <!-- Toast Notification Container -->
+  <div id="toastContainer"></div>
+
+  <div class="w-full max-w-md z-10 py-6">
+    <!-- Brand Logo Top -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center gap-2.5">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
         </div>
-        <div class="mb-3">
-          <label for="email" class="form-label">Email</label>
-          <input type="email" class="form-control" id="email" name="email" required>
+        <span class="text-2xl font-black tracking-tight text-white">NuraHub</span>
+      </div>
+      <h2 class="text-2xl font-bold tracking-tight text-white mt-4">Create your account</h2>
+      <p class="text-sm text-slate-400 mt-1">Get started with secure multi-database authentication</p>
+    </div>
+
+    <!-- Register Card -->
+    <div class="glass-card rounded-3xl p-8 border border-white/10 shadow-2xl">
+      <form id="registerForm" novalidate class="space-y-4">
+        <!-- Username -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="username" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+              Username
+            </label>
+            <span id="usernameHint" class="text-[11px] text-slate-400 font-medium">3-30 chars</span>
+          </div>
+          <div class="relative rounded-xl shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="user" class="w-5 h-5"></i>
+            </div>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              required
+              minlength="3"
+              maxlength="30"
+              autocomplete="username"
+              placeholder="e.g. johndoe"
+              class="glass-input block w-full pl-11 pr-4 py-3 text-sm text-white placeholder-slate-500 rounded-xl transition-all"
+            >
+          </div>
         </div>
-        <div class="mb-3">
-          <label for="password" class="form-label">Password</label>
-          <input type="password" class="form-control" id="password" name="password" required minlength="8">
-          <div class="form-text">At least 8 characters.</div>
+
+        <!-- Email -->
+        <div>
+          <label for="email" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            Email Address
+          </label>
+          <div class="relative rounded-xl shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="mail" class="w-5 h-5"></i>
+            </div>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              autocomplete="email"
+              placeholder="john@example.com"
+              class="glass-input block w-full pl-11 pr-4 py-3 text-sm text-white placeholder-slate-500 rounded-xl transition-all"
+            >
+          </div>
         </div>
-        <button type="submit" class="btn btn-dark w-100" id="registerBtn">Register</button>
+
+        <!-- Password -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="password" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+              Password
+            </label>
+            <span id="strengthText" class="text-[11px] font-semibold"></span>
+          </div>
+          <div class="relative rounded-xl shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="lock" class="w-5 h-5"></i>
+            </div>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              required
+              minlength="8"
+              autocomplete="new-password"
+              placeholder="At least 8 characters"
+              class="glass-input block w-full pl-11 pr-11 py-3 text-sm text-white placeholder-slate-500 rounded-xl transition-all"
+            >
+            <button
+              type="button"
+              id="togglePassword"
+              class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+              title="Toggle password visibility"
+            >
+              <i data-lucide="eye" id="eyeIconOpen" class="w-5 h-5"></i>
+              <i data-lucide="eye-off" id="eyeIconClosed" class="w-5 h-5 hidden"></i>
+            </button>
+          </div>
+
+          <!-- Password Strength Bar Container -->
+          <div class="w-full bg-slate-800/80 rounded-full h-1.5 mt-2 overflow-hidden">
+            <div id="strengthBar" class="strength-bar h-full rounded-full w-0"></div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          id="registerBtn"
+          class="btn-glow w-full py-3.5 px-4 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:opacity-95 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition-all mt-6"
+        >
+          <!-- SVG Spinner -->
+          <svg id="btnSpinner" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white hidden" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span id="btnText">Create Account</span>
+        </button>
       </form>
 
-      <p class="text-center mt-3 mb-0">
-        Already have an account? <a href="login.html">Log in</a>
-      </p>
+      <!-- Divider -->
+      <div class="relative my-6">
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-800"></div></div>
+        <div class="relative flex justify-center text-xs uppercase"><span class="bg-slate-900 px-3 text-slate-400">Already registered?</span></div>
+      </div>
+
+      <!-- Login Link -->
+      <div class="text-center">
+        <a href="login.html" class="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl text-sm font-semibold text-slate-200 glass-card hover:bg-slate-800/80 border border-slate-700/60 transition-all">
+          <span>Log In to Existing Account</span>
+          <i data-lucide="arrow-right" class="w-4 h-4 text-indigo-400"></i>
+        </a>
+      </div>
     </div>
   </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-<script src="js/register.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/register.js"></script>
+  <script>
+    lucide.createIcons();
+  </script>
 </body>
 </html>

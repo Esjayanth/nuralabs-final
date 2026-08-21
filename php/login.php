@@ -19,22 +19,18 @@ try {
     $pdo = getMysqlConnection();
 
     $stmt = $pdo->prepare(
-    'SELECT id, username, email, password_hash FROM users WHERE username = :u OR email = :e LIMIT 1'
-);
-$stmt->execute(['u' => $identifier, 'e' => $identifier]);
+        'SELECT id, username, email, password_hash FROM users WHERE username = :u OR email = :e LIMIT 1'
+    );
+    $stmt->execute(['u' => $identifier, 'e' => $identifier]);
     $user = $stmt->fetch();
 
-   if (!$user) {
-    error_log('LOGIN DEBUG: no user found for identifier=' . $identifier);
-    jsonResponse(false, 'Invalid credentials.', [], 401);
-}
+    if (!$user) {
+        jsonResponse(false, 'Invalid username/email or password.', [], 401);
+    }
 
-error_log('LOGIN DEBUG: password received length=' . strlen($password) . ' hash=' . $user['password_hash']);
-
-if (!password_verify($password, $user['password_hash'])) {
-    error_log('LOGIN DEBUG: password_verify failed');
-    jsonResponse(false, 'Invalid credentials.', [], 401);
-}
+    if (!password_verify($password, $user['password_hash'])) {
+        jsonResponse(false, 'Invalid username/email or password.', [], 401);
+    }
 
     createSession((int) $user['id']);
 
@@ -48,5 +44,5 @@ if (!password_verify($password, $user['password_hash'])) {
 
 } catch (Throwable $e) {
     error_log('login.php error: ' . $e->getMessage());
-    jsonResponse(false, 'Something went wrong. Please try again.', [], 500);
+    jsonResponse(false, 'Database connection error: ' . $e->getMessage(), [], 500);
 }

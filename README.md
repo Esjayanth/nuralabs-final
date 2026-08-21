@@ -1,8 +1,19 @@
 # NuraHub Auth — Registration / Login / Profile
 
-An authentication system built with PHP (backend APIs), jQuery/AJAX (no page
-reloads), MySQL (accounts), MongoDB (profile data), Redis (sessions), and
-Bootstrap (responsive UI).
+A modern, high-performance authentication & profile management system built with **PHP 8** (backend JSON APIs), **jQuery/AJAX** (zero page reloads), **Tailwind CSS** (glassmorphic dark/light UI), **MySQL** (accounts & credentials), **MongoDB** (dynamic document profiles), and **Redis** (in-memory sliding TTL sessions).
+
+## Key Features
+
+- **Modern Glassmorphic UI**: Designed with Tailwind CSS, Lucide Icons, glowing ambient gradient meshes, and responsive layouts.
+- **Asynchronous AJAX Pipeline**: Zero page reloads across all user journeys (Registration, Login, Profile Updates, and Logout).
+- **Custom Toast Notification System**: Floating animated toasts with status colors (success, error, warning, info) and auto-dismiss progress timers.
+- **Real-Time Password Strength Meter**: Live entropy evaluation assessing character variety, length, and strength with dynamic visual bars.
+- **Interactive Interest Tag Pills**: Chip-based dynamic tag manager supporting rapid addition (Enter/comma) and one-click removal with instant serialization.
+- **Dynamic Avatar Generator**: Automatically computes unique color gradients and initials based on user names.
+- **Triad Database Architecture**:
+  - **MySQL**: Relational user storage with `password_hash()` (Bcrypt) and parameterized PDO queries.
+  - **MongoDB Atlas**: Dynamic document storage for polymorphic profile attributes (name, age, bio, interests array).
+  - **Redis Cloud**: 1-hour sliding TTL session tokens with automatic native PHP session failover.
 
 ## Folder Structure
 
@@ -10,57 +21,50 @@ Bootstrap (responsive UI).
 nurahub-auth/
 ├── assets/
 ├── css/
-│   └── style.css
+│   └── style.css            # Glassmorphism, animations, toast & tag styles
 ├── js/
-│   ├── register.js
-│   ├── login.js
-│   └── profile.js
+│   ├── toast.js             # Reusable floating toast notification system
+│   ├── register.js          # Live validation, strength gauge, AJAX register
+│   ├── login.js             # Password toggle, loading state, AJAX login
+│   └── profile.js           # Avatar generator, dynamic tags, AJAX update & logout
 ├── php/
-│   ├── config.php
-│   ├── session_helper.php
-│   ├── register.php
-│   ├── login.php
-│   └── profile.php
-├── index.html
-├── register.html
-├── login.html
-├── profile.html
-├── schema.sql
-├── composer.json
-└── .env.example
+│   ├── config.php           # DB connections (MySQL, MongoDB, Redis) & env loader
+│   ├── session_helper.php   # Redis session token management & failover
+│   ├── register.php         # Registration API endpoint (POST)
+│   ├── login.php            # Login API endpoint (POST)
+│   └── profile.php          # Profile API endpoint (GET / POST)
+├── index.html               # Modern landing & architecture overview page
+├── register.html            # User registration & onboarding page
+├── login.html               # User authentication page
+├── profile.html             # Profile & account dashboard
+├── schema.sql               # MySQL table schema
+├── composer.json            # PHP dependencies
+└── .env.example             # Sample environment variables
 ```
 
-## Setup
+## Setup & Local Development
 
 1. **Install dependencies**
    ```bash
    composer install          # installs mongodb/mongodb
    ```
-   Also enable the `redis` and `mongodb` PHP extensions
-   (`pecl install redis mongodb`, then add both to `php.ini`).
 
-2. **Create the MySQL database**
+2. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your MySQL, MongoDB Atlas URI, and Redis credentials
+   ```
+
+3. **Create MySQL database**
    ```bash
    mysql -u root -p < schema.sql
    ```
 
-3. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   # edit .env with your real DB_HOST, DB_USER, DB_PASS, MONGO_URI, REDIS_HOST, etc.
-   ```
-
-4. **Run locally**
+4. **Run local PHP development server**
    ```bash
    php -S localhost:8000
    ```
-   Make sure MySQL, MongoDB, and Redis are running locally (or point the
-   `.env` values at hosted instances).
-
-5. **Deploy**
-   Deploy to any PHP-capable host (Render, Railway, a VPS, etc.) with
-   managed/hosted MySQL, MongoDB, and Redis, and set the same environment
-   variables there instead of committing `.env`.
+   Open `http://localhost:8000` in your web browser.
 
 ## Application Flow
 
@@ -68,60 +72,28 @@ nurahub-auth/
 flowchart TD
     A[User visits index.html] --> B[Register]
     A --> C[Login]
-    B -->|POST /php/register.php| D[(MySQL: insert user)]
-    D --> E[(MongoDB: create empty profile)]
-    E --> F[Redirect to login.html]
-    C -->|POST /php/login.php| G{Credentials valid?}
+    B -->|AJAX POST /php/register.php| D[(MySQL: insert user)]
+    D --> E[(MongoDB: create empty profile document)]
+    E --> F[Toast notification & redirect to login.html]
+    C -->|AJAX POST /php/login.php| G{Credentials valid?}
     G -- No --> C
-    G -- Yes --> H[(Redis: store session token)]
-    H --> I[Set HttpOnly cookie]
-    I --> J[Redirect to profile.html]
-    J -->|GET /php/profile.php| K{Valid session in Redis?}
+    G -- Yes --> H[(Redis: store session token with TTL)]
+    H --> I[Set HttpOnly + SameSite Cookie]
+    I --> J[Toast notification & redirect to profile.html]
+    J -->|AJAX GET /php/profile.php| K{Valid session in Redis?}
     K -- No --> C
     K -- Yes --> L[(MySQL: account info)]
     L --> M[(MongoDB: profile info)]
-    M --> N[Render profile page]
-    N -->|POST /php/profile.php| O[(MongoDB: upsert profile)]
-    N -->|Logout| P[(Redis: delete session)]
+    M --> N[Render dynamic dashboard, avatar & tags]
+    N -->|AJAX POST /php/profile.php| O[(MongoDB: upsert profile)]
+    N -->|Sign Out Action| P[(Redis: destroy session)]
     P --> C
 ```
 
-## Database Schema
+## Security Specifications
 
-```mermaid
-erDiagram
-    USERS {
-        int id PK
-        varchar username
-        varchar email
-        varchar password_hash
-        datetime created_at
-    }
-    PROFILES {
-        objectid _id PK
-        int user_id FK
-        string name
-        int age
-        string bio
-        array interests
-    }
-    SESSIONS {
-        string token PK
-        int user_id FK
-        int ttl_seconds
-    }
-    USERS ||--|| PROFILES : "has one (MongoDB)"
-    USERS ||--o{ SESSIONS : "has many (Redis, TTL-expired)"
-```
-
-- **MySQL** `users` — account credentials (username, email, bcrypt password hash).
-- **MongoDB** `profiles` — extended profile info (name, age, bio, interests), keyed by `user_id`.
-- **Redis** `session:<token>` — maps a session token to a `user_id`, with a 1-hour TTL, used to keep users signed in.
-
-## Security Notes
-
-- Passwords are hashed with `password_hash()` (bcrypt) — never stored in plain text.
-- All SQL queries use PDO prepared statements to prevent SQL injection.
-- All user input is validated/sanitized server-side before storage.
-- Session cookies are `HttpOnly` + `SameSite=Lax`; enable `secure` once served over HTTPS.
-- Secrets (DB/Mongo/Redis credentials) are read from environment variables, never hard-coded.
+- **Bcrypt Password Hashing**: Passwords are encrypted using PHP's native `password_hash()` with standard cost factors.
+- **SQL Injection Prevention**: All queries use PDO prepared statements with strict parameter binding.
+- **Session Protection**: Session cookies are configured with `HttpOnly` and `SameSite=Lax`.
+- **Sliding Session Expiry**: Active authenticated requests automatically renew the 1-hour Redis TTL.
+- **Client & Server-Side Input Validation**: Rigorous validation on both ends for email schemas, regex username patterns, integer ranges, and character limits.

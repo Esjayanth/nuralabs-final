@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
-error_log('DEBUG REQUEST_METHOD: ' . ($_SERVER['REQUEST_METHOD'] ?? 'MISSING'));
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(false, 'Method not allowed', [], 405);
 }
@@ -49,25 +49,25 @@ try {
     ]);
     $userId = (int) $pdo->lastInsertId();
 
-    // Create an empty profile document in MongoDB for this user
+    // Create an empty profile document in MongoDB for this user if available
     try {
         $collection = getMongoCollection();
-        $collection->insertOne([
-            'user_id'   => $userId,
-            'name'      => '',
-            'age'       => null,
-            'bio'       => '',
-            'interests' => [],
-        ]);
+        if ($collection !== null) {
+            $collection->insertOne([
+                'user_id'   => $userId,
+                'name'      => '',
+                'age'       => null,
+                'bio'       => '',
+                'interests' => [],
+            ]);
+        }
     } catch (Throwable $mongoErr) {
-        // Don't fail registration if Mongo is briefly unavailable; profile.php
-        // upserts on first save, so this is recoverable.
-        error_log('MongoDB profile init failed: ' . $mongoErr->getMessage());
+        error_log('MongoDB profile init notice: ' . $mongoErr->getMessage());
     }
 
     jsonResponse(true, 'Registration successful. Please log in.', ['user_id' => $userId], 201);
 
 } catch (Throwable $e) {
     error_log('register.php error: ' . $e->getMessage());
-    jsonResponse(false, 'Something went wrong. Please try again.', [], 500);
+    jsonResponse(false, 'Database error: ' . $e->getMessage(), [], 500);
 }

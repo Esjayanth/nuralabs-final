@@ -1,103 +1,139 @@
 <?php
 require_once __DIR__ . '/../vendor/autoload.php';
-function loadEnv(string $path): void {
-    if (!file_exists($path)) {
-        return;
-    }
-    foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        if (str_starts_with(trim($line), '#')) {
-            continue;
-        }
-        [$key, $value] = array_pad(explode('=', $line, 2), 2, '');
-        $key = trim($key);
-        $value = trim($value);
-        if ($key !== '' && getenv($key) === false) {
-            putenv("$key=$value");
-        }
-    }
-}
 
-loadEnv(__DIR__ . '/../.env');
+// ============================================================================
+// DATABASE CONFIGURATION
+// ============================================================================
 
-function env(string $key, ?string $default = null): ?string {
-    $value = getenv($key);
-    return $value === false ? $default : $value;
-}
+// --- Primary MySQL Configuration (InfinityFree) ---
+define('DB_HOST', 'sql205.infinityfree.com');
+define('DB_PORT', '3306');
+define('DB_NAME', 'if0_42710561_nurahub');
+define('DB_USER', 'if0_42710561');
+define('DB_PASS', '7igD0ACTvi63B');
 
+// --- Localhost MySQL Fallback (For local development/XAMPP) ---
+define('LOCAL_DB_HOST', '127.0.0.1');
+define('LOCAL_DB_PORT', '3306');
+define('LOCAL_DB_NAME', 'if0_42710561_nurahub');
+define('LOCAL_DB_USER', 'root');
+define('LOCAL_DB_PASS', '');
+
+// --- MongoDB Atlas Configuration ---
+define('MONGO_URI', 'mongodb+srv://jbadithya2005_db_user:NuraHub2026Test@cluster0.jxsbeo9.mongodb.net/?appName=Cluster0');
+define('MONGO_DB', 'nurahub_auth');
+
+// --- Redis Cloud Configuration ---
+define('REDIS_HOST', 'guide-hearty-translucent-91388.db.redis.io');
+define('REDIS_PORT', 15590);
+define('REDIS_PASS', '@Jaibala7');
+
+// --- Session Constants ---
+const SESSION_TTL_SECONDS = 3600;
+const SESSION_COOKIE_NAME = 'nh_session';
+
+/**
+ * Returns a singleton PDO MySQL instance.
+ * Connects to InfinityFree host when on live server, or falls back to localhost when running locally.
+ */
 function getMysqlConnection(): PDO {
     static $pdo = null;
-    if ($pdo === null) {
-        $host = env('DB_HOST', '127.0.0.1');
-        $port = env('DB_PORT', '3306');
-        $db   = env('DB_NAME', 'nurahub_auth');
-        $user = env('DB_USER', 'root');
-        $pass = env('DB_PASS', '');
+    if ($pdo !== null) {
+        return $pdo;
+    }
 
-        $dsn = "mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4";
-        $pdo = new PDO($dsn, $user, $pass, [
+    // 1. Try Primary Host (InfinityFree)
+    try {
+        $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
+            PDO::ATTR_TIMEOUT            => 2,
         ]);
+        return $pdo;
+    } catch (Throwable $e1) {
+        // 2. If running locally where InfinityFree remote host is unresolvable/blocked, try Localhost
+        try {
+            $localDsn = "mysql:host=" . LOCAL_DB_HOST . ";port=" . LOCAL_DB_PORT . ";dbname=" . LOCAL_DB_NAME . ";charset=utf8mb4";
+            $pdo = new PDO($localDsn, LOCAL_DB_USER, LOCAL_DB_PASS, [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+                PDO::ATTR_TIMEOUT            => 2,
+            ]);
+            return $pdo;
+        } catch (Throwable $e2) {
+            // Also try fallback database name 'nurahub_auth' on localhost
+            try {
+                $altDsn = "mysql:host=" . LOCAL_DB_HOST . ";port=" . LOCAL_DB_PORT . ";dbname=nurahub_auth;charset=utf8mb4";
+                $pdo = new PDO($altDsn, LOCAL_DB_USER, LOCAL_DB_PASS, [
+                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES   => false,
+                    PDO::ATTR_TIMEOUT            => 2,
+                ]);
+                return $pdo;
+            } catch (Throwable $e3) {
+                throw new RuntimeException("MySQL Connection Failed: " . $e1->getMessage());
+            }
+        }
     }
-    return $pdo;
 }
 
+/**
+ * Returns a MongoDB Collection instance
+ */
 function getMongoCollection(): ?MongoDB\Collection {
     try {
-        $uri = env('MONGO_URI');
-        $dbName = env('MONGO_DB', 'nurahub_auth');
-
-        if (!$uri) {
-            throw new RuntimeException('MONGO_URI is empty or not loaded');
+        if (!class_exists('MongoDB\Client') || !extension_loaded('mongodb')) {
+            return null;
         }
 
-        $client = new MongoDB\Client($uri);
+        if (!defined('MONGO_URI') || empty(MONGO_URI)) {
+            return null;
+        }
 
-        $db = $client->selectDatabase($dbName);
-
-        // Force Atlas connection
-        $db->command(['ping' => 1]);
-
+        $client = new MongoDB\Client(MONGO_URI);
+        $db = $client->selectDatabase(MONGO_DB);
         return $db->selectCollection('profiles');
 
     } catch (Throwable $e) {
-        // TEMPORARY: show the real error
-        throw new RuntimeException(
-            'MongoDB error: ' . $e->getMessage(),
-            0,
-            $e
-        );
+        error_log('MongoDB notice: ' . $e->getMessage());
+        return null;
     }
 }
 
+/**
+ * Returns a Redis instance or null (falls back to native session)
+ */
 function getRedisConnection(): ?Redis {
     static $redis = null;
     static $attempted = false;
     if ($redis === null && !$attempted) {
         $attempted = true;
         try {
+            if (!class_exists('Redis') || !extension_loaded('redis')) {
+                return null;
+            }
             $candidate = new Redis();
-            $host = env('REDIS_HOST', '127.0.0.1');
-            $port = (int) env('REDIS_PORT', '6379');
-            $candidate->connect($host, $port, 2);
-            $pass = env('REDIS_PASS', '');
-            if ($pass !== '') {
-                $candidate->auth($pass);
+            $candidate->connect(REDIS_HOST, (int) REDIS_PORT, 2);
+            if (defined('REDIS_PASS') && REDIS_PASS !== '') {
+                $candidate->auth(REDIS_PASS);
             }
             $candidate->ping();
             $redis = $candidate;
         } catch (Throwable $e) {
-            error_log('Redis unavailable, falling back to native PHP sessions: ' . $e->getMessage());
+            error_log('Redis unavailable, using native PHP session: ' . $e->getMessage());
             $redis = null;
         }
     }
     return $redis;
 }
 
-const SESSION_TTL_SECONDS = 3600;
-const SESSION_COOKIE_NAME = 'nh_session';
-
+/**
+ * Helper to output standardized JSON responses and exit
+ */
 function jsonResponse(bool $ok, string $message = '', array $data = [], int $httpCode = 200): void {
     http_response_code($httpCode);
     header('Content-Type: application/json');

@@ -1,42 +1,64 @@
 $(function () {
-  function showAlert($el, message, type) {
-    $el.removeClass('d-none alert-success alert-danger')
-       .addClass('alert-' + type)
-       .text(message);
-  }
+  // Password Visibility Toggle
+  $('#togglePassword').on('click', function () {
+    const $pwd = $('#password');
+    const type = $pwd.attr('type') === 'password' ? 'text' : 'password';
+    $pwd.attr('type', type);
+    $('#eyeIconOpen').toggleClass('hidden');
+    $('#eyeIconClosed').toggleClass('hidden');
+  });
 
+  // Login Form Submission via AJAX
   $('#loginForm').on('submit', function (e) {
     e.preventDefault();
 
-    const $alert = $('#loginAlert');
     const $btn = $('#loginBtn');
+    const $btnText = $('#btnText');
+    const $btnSpinner = $('#btnSpinner');
 
-    const payload = {
-      identifier: $('#identifier').val().trim(),
-      password: $('#password').val(),
-    };
+    const identifier = $('#identifier').val().trim();
+    const password = $('#password').val();
 
-    $btn.prop('disabled', true).text('Logging in...');
+    if (!identifier || !password) {
+      showToast('Please enter both your identifier and password.', 'warning');
+      return;
+    }
+
+    // Set loading state
+    $btn.prop('disabled', true).addClass('opacity-75 cursor-not-allowed');
+    $btnText.text('Signing in...');
+    $btnSpinner.removeClass('hidden');
 
     $.ajax({
       url: 'php/login.php',
       method: 'POST',
       contentType: 'application/json',
-      data: JSON.stringify(payload),
+      data: JSON.stringify({
+        identifier: identifier,
+        password: password,
+      }),
       dataType: 'json',
     })
       .done(function (res) {
-        showAlert($alert, res.message || 'Logged in!', 'success');
+        showToast(res.message || 'Login successful! Redirecting...', 'success', 2000);
+        $btnText.text('Redirecting...');
         setTimeout(function () {
-          window.location.href = 'profile.html'; // redirect after successful login
-        }, 500);
+          window.location.href = 'profile.html';
+        }, 800);
       })
       .fail(function (xhr) {
         const res = xhr.responseJSON;
-        showAlert($alert, (res && res.message) || 'Login failed.', 'danger');
+        const msg = (res && res.message) || 'Invalid credentials or login failed.';
+        showToast(msg, 'error', 4000);
+        $('#password').addClass('border-rose-500/80');
+        setTimeout(() => $('#password').removeClass('border-rose-500/80'), 2500);
       })
       .always(function () {
-        $btn.prop('disabled', false).text('Log In');
+        setTimeout(() => {
+          $btn.prop('disabled', false).removeClass('opacity-75 cursor-not-allowed');
+          $btnText.text('Sign In to Account');
+          $btnSpinner.addClass('hidden');
+        }, 500);
       });
   });
 });

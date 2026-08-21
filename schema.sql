@@ -1,5 +1,7 @@
-CREATE DATABASE IF NOT EXISTS nurahub_auth CHARACTER SET utf8mb4;
-USE nurahub_auth;
+-- ============================================================================
+-- NuraHub Auth MySQL Schema & Initial Data
+-- Database: if0_42710561_nurahub
+-- ============================================================================
 
 CREATE TABLE IF NOT EXISTS users (
     id            INT AUTO_INCREMENT PRIMARY KEY,
@@ -7,10 +9,9 @@ CREATE TABLE IF NOT EXISTS users (
     email         VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- MongoDB `profiles` collection (created automatically, no DDL needed):
--- { user_id: Int, name: String, age: Int|null, bio: String, interests: [String] }
-
--- Redis key pattern (created automatically at login, no DDL needed):
--- session:<token>  ->  user_id   (TTL 3600s)
+-- Sample Test Account (Password is: Password123!)
+INSERT INTO users (username, email, password_hash, created_at) 
+VALUES ('alex_dev', 'alex@example.com', '$2y$10$GMUrr4NxtYVijfjTBtjRSu2ffjlB.IFdelVTRAPGt.UKclf1hzHZy', NOW())
+ON DUPLICATE KEY UPDATE id=id;
